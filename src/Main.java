@@ -1,3 +1,5 @@
+import jdk.jshell.spi.ExecutionControl;
+
 import java.sql.*;
 import java.util.*;
 
@@ -78,7 +80,7 @@ public class Main {
              String query = "update offers set price = ? where r_id = (select r_id from restaurant where restName like ?) and i_id = (select i_id from item where itemName like ?)";
              pst = con.prepareStatement(query);
              pst.setInt(1, newPrice);
-             pst.setString(2, restName);
+             pst.setString(2, restName + "%");
              pst.setString(3, itemName);
              pst.executeUpdate();
              System.out.println("Updated successfully");
@@ -149,7 +151,7 @@ public class Main {
             connect();
             String query = "SELECT restName, address, r_phoneNo, pincode FROM restaurant WHERE restName like ?";
             PreparedStatement pst = con.prepareStatement(query);
-            pst.setString(1, "%" + name + "%");
+            pst.setString(1, name + "%");
             ResultSet rs = pst.executeQuery();
             printAll(rs);
         } catch (SQLException e) {
@@ -185,11 +187,30 @@ public class Main {
         }
     }
 
+    // Function gets actual restaurant name from DB
+    public static String getRestName(String name) {
+        try{
+            connect();
+            String query = "select restName from restaurant where restName like ?";
+            pst = con.prepareStatement(query);
+            pst.setString(1, name + "%");
+            ResultSet rs = pst.executeQuery();
+            rs.next();
+            return rs.getString(1);
+        } catch(Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 
     public static void getMenu(String restName) {
         try {
             connect();
-            PreparedStatement pst = Main.con.prepareStatement("select itemName, price from restaurant natural join offers natural join item where restName like ?");
+            restName = getRestName(restName);
+            System.out.println("Menu for " + restName);
+
+            PreparedStatement pst = con.prepareStatement("select itemName, price from restaurant natural join offers natural join item where restName like ?");
             pst.setString(1, restName + "%");
             ResultSet rs = pst.executeQuery();
             printAll(rs);
@@ -205,6 +226,7 @@ public class Main {
             PreparedStatement pst = Main.con.prepareStatement("select o_id, o_date, o_time, o_status from orders natural join places where username = ?");
             pst.setString(1, username);
             ResultSet rs = pst.executeQuery();
+            System.out.println("Recent orders:");
             printAll(rs);
         } catch(Exception e) {
             System.out.println("Couldn't retrieve order status");
@@ -231,6 +253,24 @@ public class Main {
         try {
             connect();
             String query;
+
+            // Check if restaurant offers each item
+            int b = 1;
+            for (String i : items) {
+                query = "select exists(select i_id from restaurant natural join offers natural join item where restName like ? and itemName like ?)";
+                pst = con.prepareStatement(query);
+                pst.setString(1, restName + '%');
+                pst.setString(2, i);
+                ResultSet rs = pst.executeQuery();
+                rs.next();
+                int x = rs.getInt(1);
+                if (x == 0) {
+                    System.out.println(i + " not available");
+                    b = 0;
+                }
+            }
+
+            if (b == 0) return;
 
             // insert into orders table
             query = "INSERT INTO orders (o_date, o_time, o_status) VALUES (CURDATE(), NOW(), 'Processing')";
@@ -273,7 +313,7 @@ public class Main {
             // Check if restaurant has available staff
             query = "select exists(select s_id from restaurant natural join employs natural join staff where restName like ? and available like 'yes')";
             pst = con.prepareStatement(query);
-            pst.setString(1, restName);
+            pst.setString(1, restName + "%");
             ResultSet rs = pst.executeQuery();
             rs.next();
             int a = rs.getInt(1);
@@ -281,6 +321,8 @@ public class Main {
                 query = "update orders set o_status = 'Rejected' where o_id = (select * from most_recent)";
                 pst = con.prepareStatement(query);
                 pst.executeUpdate();
+                restName = getRestName(restName);
+                System.out.println("Order rejected by " + restName + ". No staff available currently");
                 return;
             }
 
@@ -292,7 +334,7 @@ public class Main {
             pst.close();
 
             // insert into delivers table
-            query = "INSERT INTO delivers VALUES ((SELECT s_id FROM employs NATURAL JOIN staff NATURAL JOIN restaurant WHERE restName LIKE ? AND available LIKE 'yes' LIMIT 1), (SELECT o_id FROM orders WHERE o_id = (SELECT * FROM most_recent)), TIMESTAMP(DATE_ADD(NOW(), INTERVAL FLOOR(RAND()*(20-10+1)+10) MINUTE)))";
+            query = "INSERT INTO delivers VALUES ((SELECT s_id FROM employs NATURAL JOIN staff NATURAL JOIN restaurant WHERE restName LIKE ? AND available LIKE 'yes' LIMIT 1), (SELECT o_id FROM orders WHERE o_id = (SELECT * FROM most_recent)), TIMESTAMP(DATE_ADD(NOW(), INTERVAL FLOOR(RAND()*(40-20+1)+20) MINUTE)))";
             pst = con.prepareStatement(query);
             pst.setString(1, restName + "%");
             pst.executeUpdate();
@@ -324,7 +366,7 @@ public class Main {
 
             con.close();
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -334,7 +376,7 @@ public class Main {
             connect();
             String query = "select r_id from restaurant where restName like ?";
             pst = con.prepareStatement(query);
-            pst.setString(1, restName);
+            pst.setString(1, restName + "%");
             ResultSet rs = pst.executeQuery();
             rs.next();
             int r_id = rs.getInt(1);
@@ -343,6 +385,7 @@ public class Main {
             pst = con.prepareStatement(query);
             pst.setInt(1, r_id);
             rs = pst.executeQuery();
+            System.out.println("Viewing staff for " + getRestName(restName));
             printAll(rs);
         } catch(Exception e) {
             e.printStackTrace();
@@ -353,10 +396,12 @@ public class Main {
     public static void orderReport(String restName) {
 //        Avergae delivery time
         try {
+            System.out.println("Order Report for " + getRestName(restName));
+
             connect();
             String query = "select (avg(timestampdiff(minute, o_time, delivery_time))) as 'Average Delivery time' from prepares natural join delivers natural join orders natural join restaurant where restName like ?";
             pst = con.prepareStatement(query);
-            pst.setString(1, restName);
+            pst.setString(1, restName + "%");
             ResultSet rs = pst.executeQuery();
             printAll(rs);
 
@@ -368,22 +413,22 @@ public class Main {
                     "count(*) as Count\n" +
                     "from prepares natural join delivers natural join orders natural join restaurant where restName like ? group by TimeOfDay";
             pst = con.prepareStatement(query);
-            pst.setString(1, restName);
+            pst.setString(1, restName + "%");
             rs = pst.executeQuery();
             printAll(rs);
 
 
             query = "select (order_count * total_staff) / Average_Delivery_time as 'Productivity' from (select count(*) as 'order_count', (avg(timestampdiff(minute, o_time, delivery_time))) as 'Average_Delivery_time', (select count(*) from restaurant natural join employs natural join staff where restName like ?) as 'total_staff' from prepares natural join delivers natural join orders natural join restaurant where restName like ?) as temp";
             pst = con.prepareStatement(query);
-            pst.setString(1, restName);
-            pst.setString(2, restName);
+            pst.setString(1, restName + "%");
+            pst.setString(2, restName + "%");
             rs = pst.executeQuery();
             printAll(rs);
 
             query = "select sum(price) as 'Total Revenue' from restaurant natural join offers natural join item where i_id in (select i_id from orders natural join containss natural join item natural join prepares natural join restaurant where restName like ?) and restName like ?";
             pst = con.prepareStatement(query);
-            pst.setString(1, restName);
-            pst.setString(2, restName);
+            pst.setString(1, restName + "%");
+            pst.setString(2, restName + "%");
             rs = pst.executeQuery();
             printAll(rs);
 
@@ -397,7 +442,7 @@ public class Main {
              connect();
              String query = "select staffname from staff where staffname not in (select staffname from restaurant natural join employs natural join staff where restname = ?)";
              pst = con.prepareStatement(query);
-             pst.setString(1, restname);
+             pst.setString(1, restname + "%");
              ResultSet rs = pst.executeQuery();
              System.out.println("Available staff to add:");
              printAll(rs);
@@ -428,6 +473,7 @@ public class Main {
 
         Scanner sc = new Scanner(System.in);
         while(true) {
+            System.out.println();
             System.out.println("Enter 1 if you are a Customer\nEnter 2 if you are a restaurant owner\nEnter 3 to exit");
             int a;
             try {
@@ -442,6 +488,7 @@ public class Main {
             }
             if (a == 1) {
                 String username, pass;
+                System.out.println();
                 System.out.println("Enter 1 to sign in as existing customer\nEnter 2 to sign up as new customer");
                 a = Integer.parseInt(sc.nextLine());
                 if (a == 2) {
@@ -473,11 +520,14 @@ public class Main {
                     if (exists == 0) {
                         System.out.println("sign in failed");
                     } else if (exists == 1) {
+                        System.out.println("Signed in successfully!");
                         while (true) {
+                            System.out.println();
                             System.out.println("Enter 1 to browse restaurants\nEnter 2 to browse menu\nEnter 3 to change password\nEnter 4 to view order history\nEnter 5 to sign out");
                             a = Integer.parseInt(sc.nextLine());
                             if (a == 5) break;
                             if (a == 1) {
+                                System.out.println();
                                 System.out.println("Enter 1 to browse by name\nenter 2 to browse by pincode\nenter 3 to browse by food item");
                                 a = Integer.parseInt(sc.nextLine());
                                 if (a == 1) {
@@ -497,12 +547,13 @@ public class Main {
                                 System.out.print("Restaurant Name: ");
                                 String restname = sc.nextLine();
                                 getMenu(restname);
+                                System.out.println();
                                 System.out.println("Enter 1 to order\nEnter 2 to exit");
                                 a = Integer.parseInt(sc.nextLine());
                                 if (a == 2) continue;
                                 if (a == 1) {
 
-                                    System.out.print("Enter items separated by comma, no spaces; ");
+                                    System.out.print("Enter items separated by comma, no spaces: ");
                                     String items = sc.nextLine();
                                     String[] itemsarr = items.split(",");
                                     placeOrder(username, itemsarr, restname);
@@ -521,6 +572,7 @@ public class Main {
                 }
             } else if (a == 2) {
                 while(true){
+                    System.out.println();
                     System.out.println("Enter 1 to add new restaurant\nEnter 2 to sign in to existing restaurant\nEnter 3 to exit");
                     a = Integer.parseInt(sc.nextLine());
                     if(a==3)break;
@@ -542,6 +594,7 @@ public class Main {
                         System.out.print("Restaurant name:");
                         restname = sc.nextLine();
                         while(true){
+                            System.out.println();
                             System.out.println("Enter 1 to add item to menu\nEnter 2 to change price of an item\nEnter 3 to add staff\nEnter 4 to view employees\nEnter 5 to generate order report\nEnter 6 to view menu\nEnter 7 to sign out");
                             a = Integer.parseInt(sc.nextLine());
                             if(a==7)break;
