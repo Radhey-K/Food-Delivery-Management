@@ -453,24 +453,6 @@ public class Main {
 
 
     public static void main(String[] args) {
-//        addRestaurant("Annapurna", "C'not right middle", 7885422369L, 411011);
-//        addToMenu("Annapurna", "Pizza", 200);
-//        changePrice("Annapurna", "Pizza", 300);
-//        signUp("V_Kabra", "Vedant", "Kabra", "VY 2121, Pilani", 7788996655L, "vk@gmail.com", "vk1234");
-//        updateCustomerPassword("V_Kabra", 7788996655L, "vk1234");
-//        searchRestaurantByName("Pizzeria");
-//        searchRestaurantByPincode(411001);
-//        searchRestaurantByItem("Sushi");
-//        getMenu("BBQ Green");
-//        viewOrderStatus("A_Waikar");
-//        addStaff("Pizzeria", "Vikas Shah", 9000);
-//        String[] items = {"Sushi", "Tacos"};
-//        placeOrder("A_Sawant", items, "BBQ Green");
-//        viewStaff("BBQ Green");
-//        orderReport("Pizzeria");
-//        System.out.println(signIn("A_Sawant", "as1234"));
-//        non_emp_staff("Pizzeria");
-
         Scanner sc = new Scanner(System.in);
         while(true) {
             System.out.println();
