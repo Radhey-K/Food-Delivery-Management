@@ -74,7 +74,7 @@ create table Prepares(
 create table Offers(
 	r_id int unsigned,
 	i_id int unsigned,
-    price numeric(5,2) not null default 0.0,
+    price numeric(7,2) not null default 0.0,
     CONSTRAINT itemFK foreign key (i_id) references item(i_id),
     constraint rest_item_FK foreign key (r_id) REFERENCES restaurant(r_id),
     primary key (i_id, r_id)

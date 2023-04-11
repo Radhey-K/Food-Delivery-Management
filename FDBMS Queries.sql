@@ -16,7 +16,7 @@ insert into customer values
 ('V_Kabra', 'Vedant', 'Kabra', 'VY 2121, Pilani', 7788888552, 'vk@gmail.com', 'vk1234');
 
 -- Signin authentication. Eg. someone wants to sign in with username A_Sawant and the right password
-select if((select count(*) from customer where username='A_Sawant' and password='as1234'), 'Authenticated Successfully', 'Authentication failed') as Authentication;
+select if((select count(*) from customer where username='A_Sawant' and password='as123'), 'Authenticated Successfully', 'Authentication failed') as Authentication;
 
 -- To reset password with phone number as security question. Eg. A_Sawant wants to change password to as12345. If wrong phone number is entered, no changes are made to database
 update customer set password='as12345' where username='A_Sawant' and phoneNo='4444444444';
